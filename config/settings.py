@@ -23,7 +23,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-
+AUTH_USER_MODEL = "DocumentManagementApp.User"
 
 INSTALLED_APPS = [
     'django.contrib.admin',
