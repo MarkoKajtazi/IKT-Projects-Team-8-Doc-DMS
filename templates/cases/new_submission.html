@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}New Application - Doc DMS{% endblock %}
+
+{% block content %}
+<h1>New Application</h1>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  {{ form.non_field_errors }}
+
+  <div style="margin-bottom: 1rem;">
+    <label for="{{ form.template.id_for_label }}"><strong>Document type:</strong></label><br>
+    {{ form.template }}
+    {{ form.template.errors }}
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <label for="{{ form.main_pdf.id_for_label }}"><strong>Main PDF:</strong></label><br>
+    {{ form.main_pdf }}
+    <small>{{ form.main_pdf.help_text }}</small>
+    {{ form.main_pdf.errors }}
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <label><strong>Supporting attachments</strong> (up to 5):</label><br>
+    <input type="file" name="attachments" multiple>
+  </div>
+
+  <button type="submit" class="btn">Submit</button>
+</form>
+{% endblock %}

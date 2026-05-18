@@ -12,7 +12,8 @@ class DocumentTemplate(models.Model):
     type_code = models.CharField(
         max_length=10,
         unique=True,
-        help_text="3-character code used in case numbers, e.g. '100'.",
+        blank=True,
+        help_text="Auto-generated 3-digit code used in case numbers (YY-TTT-NNNNN).",
     )
     description = models.TextField(blank=True)
     default_department = models.ForeignKey(
@@ -26,6 +27,13 @@ class DocumentTemplate(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.type_code:
+            super().save(*args, **kwargs)
+            self.type_code = f"{self.pk:03d}"
+            kwargs["force_insert"] = False
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.type_code})"

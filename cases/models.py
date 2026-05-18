@@ -158,11 +158,13 @@ class Case(models.Model):
 
 
 def main_document_upload_path(instance, filename):
-    return f"cases/{instance.case.case_number}/main/{filename}"
+    folder = instance.case.case_number or f"draft-{instance.case.pk}"
+    return f"cases/{folder}/main/{filename}"
 
 
 def attachment_upload_path(instance, filename):
-    return f"cases/{instance.case.case_number}/attachments/{filename}"
+    folder = instance.case.case_number or f"draft-{instance.case.pk}"
+    return f"cases/{folder}/attachments/{filename}"
 
 
 class CaseDocument(models.Model):

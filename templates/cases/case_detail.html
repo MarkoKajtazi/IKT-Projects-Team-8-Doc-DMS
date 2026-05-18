@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Case {{ case.case_number|default:"Draft" }} - Doc DMS{% endblock %}
+
+{% block content %}
+<h1>Case {{ case.case_number|default:"Draft" }}</h1>
+
+<table style="margin-bottom: 1.5rem;">
+  <tr><td><strong>Status:</strong></td><td style="padding-left: 1rem;">{{ case.get_status_display }}</td></tr>
+  <tr><td><strong>Document type:</strong></td><td style="padding-left: 1rem;">{{ case.template.name }}</td></tr>
+  <tr><td><strong>Department:</strong></td><td style="padding-left: 1rem;">{{ case.department|default:"Not assigned" }}</td></tr>
+  <tr><td><strong>Submitted:</strong></td><td style="padding-left: 1rem;">{{ case.submitted_at|default:"-" }}</td></tr>
+  <tr><td><strong>Assigned to:</strong></td><td style="padding-left: 1rem;">{{ case.assigned_to|default:"Unassigned" }}</td></tr>
+</table>
+
+<h2>Documents</h2>
+{% if documents %}
+  <ul>
+    {% for doc in documents %}
+      <li><a href="{{ doc.file.url }}">{{ doc.file_name }}</a> ({{ doc.file_size|filesizeformat }})</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No documents uploaded.</p>
+{% endif %}
+
+{% if attachments %}
+  <h2>Attachments</h2>
+  <ul>
+    {% for att in attachments %}
+      <li><a href="{{ att.file.url }}">{{ att.file_name }}</a> ({{ att.file_size|filesizeformat }})</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if comments %}
+  <h2>Comments</h2>
+  {% for comment in comments %}
+    <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem;">
+      <strong>{{ comment.author }}</strong> <small>{{ comment.created_at }}</small>
+      <p>{{ comment.text }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<a href="{% url 'my_cases' %}" class="btn btn-secondary" style="margin-top: 1rem;">Back to My Cases</a>
+{% endblock %}
