@@ -108,7 +108,21 @@
         {% if user.role == "manager" %}
           <li><a href="/cases/department/">Department</a></li>
         {% endif %}
-        <li><a href="/notifications/">Notifications</a></li>
+        <li>
+          <a href="/notifications/" style="position:relative;">
+            Notifications
+            {% if unread_notification_count %}
+              <span style="
+                position:absolute; top:-6px; right:-10px;
+                background:#dc2626; color:#fff;
+                font-size:0.65rem; font-weight:700;
+                min-width:16px; height:16px; border-radius:999px;
+                display:inline-flex; align-items:center; justify-content:center;
+                padding:0 4px; line-height:1;
+              ">{{ unread_notification_count }}</span>
+            {% endif %}
+          </a>
+        </li>
         <li class="navbar-user">{{ user.get_short_name|default:user.username }} ({{ user.role }})</li>
         <li>
           <form method="post" action="{% url 'logout' %}" style="display:inline;">

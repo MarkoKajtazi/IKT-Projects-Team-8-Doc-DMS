@@ -1,31 +1,166 @@
 {% extends "base.html" %}
 {% block title %}New Application - Doc DMS{% endblock %}
 
+{% block extra_css %}
+<style>
+  .form-group { margin-bottom: 1.25rem; }
+  .form-group label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+  .form-group small { display: block; color: #6b7280; font-size: 0.8rem; margin-top: 0.25rem; }
+  .form-group .errorlist { color: #dc2626; font-size: 0.85rem; list-style: none; margin-top: 0.25rem; }
+
+  /* Requirements panel */
+  #requirements-panel {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    display: none;
+  }
+  #requirements-panel h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 0.75rem;
+  }
+  #requirements-panel .tmpl-description {
+    font-size: 0.875rem;
+    color: #1e3a5f;
+    margin-bottom: 0.75rem;
+  }
+  .req-section { margin-bottom: 0.75rem; }
+  .req-section h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #3b82f6;
+    margin-bottom: 0.4rem;
+  }
+  .req-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+  .req-list li {
+    font-size: 0.875rem;
+    color: #1e3a5f;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .req-list li::before { content: "•"; color: #3b82f6; flex-shrink: 0; }
+  .req-list li .req-desc { color: #6b7280; font-size: 0.8rem; }
+  .req-list li .req-optional { color: #9ca3af; font-size: 0.75rem; font-style: italic; }
+  .no-reqs { font-size: 0.875rem; color: #6b7280; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>New Application</h1>
+<h1 style="font-size:1.4rem; font-weight:700; margin-bottom:1.5rem;">New Application</h1>
+
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
-
   {{ form.non_field_errors }}
 
-  <div style="margin-bottom: 1rem;">
-    <label for="{{ form.template.id_for_label }}"><strong>Document type:</strong></label><br>
+  <!-- Template selector -->
+  <div class="form-group">
+    <label for="{{ form.template.id_for_label }}">Document type</label>
     {{ form.template }}
     {{ form.template.errors }}
   </div>
 
-  <div style="margin-bottom: 1rem;">
-    <label for="{{ form.main_pdf.id_for_label }}"><strong>Main PDF:</strong></label><br>
+  <!-- Requirements panel — shown when a template is selected -->
+  <div id="requirements-panel">
+    <h3>📋 What this document must include</h3>
+    <div id="tmpl-description" class="tmpl-description"></div>
+    <div id="tmpl-fields-section" class="req-section">
+      <h4>Required fields in the PDF</h4>
+      <ul id="tmpl-fields" class="req-list"></ul>
+    </div>
+    <div id="tmpl-attachments-section" class="req-section">
+      <h4>Supporting attachments</h4>
+      <ul id="tmpl-attachments" class="req-list"></ul>
+    </div>
+    <p id="tmpl-no-reqs" class="no-reqs" style="display:none;">No specific requirements defined for this document type.</p>
+  </div>
+
+  <!-- Main PDF upload -->
+  <div class="form-group">
+    <label for="{{ form.main_pdf.id_for_label }}">Main PDF</label>
     {{ form.main_pdf }}
     <small>{{ form.main_pdf.help_text }}</small>
     {{ form.main_pdf.errors }}
   </div>
 
-  <div style="margin-bottom: 1rem;">
-    <label><strong>Supporting attachments</strong> (up to 5):</label><br>
+  <!-- Attachments -->
+  <div class="form-group">
+    <label>Supporting attachments <span style="font-weight:400; color:#6b7280;">(up to 5)</span></label>
     <input type="file" name="attachments" multiple>
   </div>
 
-  <button type="submit" class="btn">Submit</button>
+  <button type="submit" class="btn">Submit application</button>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const REQUIREMENTS = {{ template_requirements_json|safe }};
+
+const select      = document.getElementById('{{ form.template.id_for_label }}');
+const panel       = document.getElementById('requirements-panel');
+const descEl      = document.getElementById('tmpl-description');
+const fieldsUl    = document.getElementById('tmpl-fields');
+const attachUl    = document.getElementById('tmpl-attachments');
+const fieldsSection  = document.getElementById('tmpl-fields-section');
+const attachSection  = document.getElementById('tmpl-attachments-section');
+const noReqs      = document.getElementById('tmpl-no-reqs');
+
+function renderRequirements(templateId) {
+  const data = REQUIREMENTS[templateId];
+  if (!data) { panel.style.display = 'none'; return; }
+
+  // Description
+  descEl.textContent = data.description || '';
+  descEl.style.display = data.description ? 'block' : 'none';
+
+  // Required fields
+  fieldsUl.innerHTML = '';
+  if (data.fields.length > 0) {
+    data.fields.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${f.name}</span>`
+        + (f.description ? ` <span class="req-desc">— ${f.description}</span>` : '')
+        + (!f.required ? ` <span class="req-optional">(optional)</span>` : '');
+      fieldsUl.appendChild(li);
+    });
+    fieldsSection.style.display = 'block';
+  } else {
+    fieldsSection.style.display = 'none';
+  }
+
+  // Attachments
+  attachUl.innerHTML = '';
+  if (data.attachments.length > 0) {
+    data.attachments.forEach(a => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${a.name}</span>`
+        + (a.description ? ` <span class="req-desc">— ${a.description}</span>` : '')
+        + (!a.required ? ` <span class="req-optional">(optional)</span>` : '');
+      attachUl.appendChild(li);
+    });
+    attachSection.style.display = 'block';
+  } else {
+    attachSection.style.display = 'none';
+  }
+
+  const hasContent = data.fields.length > 0 || data.attachments.length > 0 || data.description;
+  noReqs.style.display = hasContent ? 'none' : 'block';
+  panel.style.display = 'block';
+}
+
+select.addEventListener('change', function() {
+  renderRequirements(this.value);
+});
+
+// If a template is already selected on page load (e.g. form re-render after error)
+if (select.value) renderRequirements(select.value);
+</script>
 {% endblock %}

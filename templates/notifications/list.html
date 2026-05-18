@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Notifications - Doc DMS{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+  .page-header h1 { font-size:1.4rem; font-weight:700; }
+
+  .notif-list { display:flex; flex-direction:column; gap:0.5rem; }
+
+  .notif-item {
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:8px;
+    padding:0.9rem 1.1rem;
+    display:flex;
+    align-items:flex-start;
+    gap:0.9rem;
+  }
+  .notif-item.unread {
+    border-left:4px solid #1e3a5f;
+    background:#f8faff;
+  }
+
+  .notif-dot {
+    width:8px; height:8px;
+    border-radius:50%;
+    background:#1e3a5f;
+    margin-top:6px;
+    flex-shrink:0;
+  }
+  .notif-dot.read { background:#d1d5db; }
+
+  .notif-body { flex:1; }
+  .notif-message { font-size:0.9rem; color:#1a1a1a; margin-bottom:0.2rem; }
+  .notif-meta { font-size:0.78rem; color:#9ca3af; display:flex; gap:0.75rem; align-items:center; }
+
+  .notif-case-link { font-size:0.8rem; color:#1e3a5f; font-weight:500; text-decoration:none; }
+  .notif-case-link:hover { text-decoration:underline; }
+
+  .badge-type {
+    display:inline-block; padding:0.15rem 0.5rem;
+    border-radius:999px; font-size:0.7rem; font-weight:600;
+  }
+  .type-submission_received { background:#dbeafe; color:#1e40af; }
+  .type-needs_correction    { background:#fef3c7; color:#92400e; }
+  .type-approved            { background:#bbf7d0; color:#14532d; }
+  .type-rejected            { background:#fee2e2; color:#991b1b; }
+  .type-archived            { background:#f3f4f6; color:#6b7280; }
+  .type-assigned            { background:#ede9fe; color:#5b21b6; }
+  .type-reassigned          { background:#ede9fe; color:#5b21b6; }
+  .type-escalated           { background:#fef3c7; color:#92400e; }
+  .type-forwarded           { background:#e0f2fe; color:#0c4a6e; }
+
+  .empty-state { text-align:center; padding:4rem 2rem; color:#9ca3af; }
+  .empty-state svg { width:48px; height:48px; margin-bottom:1rem; opacity:0.35; }
+  .empty-state p { font-size:0.95rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Notifications</h1>
+  {% if unread_count %}
+    <span style="font-size:0.85rem; color:#6b7280;">{{ unread_count }} unread marked as read</span>
+  {% endif %}
+</div>
+
+{% if notifications %}
+  <div class="notif-list">
+    {% for n in notifications %}
+    <div class="notif-item {% if not n.is_read %}unread{% endif %}">
+      <div class="notif-dot {% if n.is_read %}read{% endif %}"></div>
+      <div class="notif-body">
+        <div class="notif-message">{{ n.message }}</div>
+        <div class="notif-meta">
+          <span class="badge-type type-{{ n.notification_type }}">{{ n.get_notification_type_display }}</span>
+          <span>{{ n.created_at|date:"d M Y, H:i" }}</span>
+          {% if n.case %}
+            <a href="{% url 'case_detail' n.case.pk %}" class="notif-case-link">
+              View case {{ n.case.case_number }} →
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+    </svg>
+    <p>No notifications yet.</p>
+  </div>
+{% endif %}
+{% endblock %}

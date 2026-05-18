@@ -1,6 +1,287 @@
 {% extends "base.html" %}
 {% block title %}Work Queue - Doc DMS{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .page-header .dept-label {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-bar select,
+  .filter-bar input[type="text"] {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #374151;
+    background: #fff;
+  }
+  .filter-bar select:focus,
+  .filter-bar input:focus {
+    outline: none;
+    border-color: #1e3a5f;
+  }
+
+  /* Stats */
+  .stats-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1;
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.875rem 1.25rem;
+  }
+  .stat-card .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1e3a5f;
+    line-height: 1;
+  }
+  .stat-card .stat-label {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .stat-card.urgent .stat-value { color: #b45309; }
+
+  /* Table */
+  .queue-table-wrap {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .queue-table thead {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .queue-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+  }
+  .queue-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    vertical-align: middle;
+  }
+  .queue-table tbody tr:last-child td { border-bottom: none; }
+  .queue-table tbody tr:hover td { background: #f9fafb; }
+
+  .case-number {
+    font-family: monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e3a5f;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-submitted        { background: #dbeafe; color: #1e40af; }
+  .badge-ai_analyzed      { background: #ede9fe; color: #5b21b6; }
+  .badge-needs_correction { background: #fef3c7; color: #92400e; }
+  .badge-accepted         { background: #d1fae5; color: #065f46; }
+  .badge-under_review     { background: #e0f2fe; color: #0c4a6e; }
+  .badge-approved         { background: #bbf7d0; color: #14532d; }
+  .badge-rejected         { background: #fee2e2; color: #991b1b; }
+  .badge-archived         { background: #f3f4f6; color: #6b7280; }
+
+  /* Priority indicator for unassigned / waiting long */
+  .unassigned-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .action-link {
+    color: #1e3a5f;
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+  .action-link:hover { text-decoration: underline; }
+
+  .assigned-to {
+    font-size: 0.85rem;
+    color: #374151;
+  }
+  .unassigned {
+    font-size: 0.85rem;
+    color: #f59e0b;
+    font-weight: 500;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #9ca3af;
+  }
+  .empty-state svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+  }
+  .empty-state p { font-size: 0.95rem; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Work Queue</h1>
-<p>Coming soon.</p>
+<div class="page-header">
+  <div>
+    <h1>Work Queue</h1>
+    {% if request.user.department %}
+      <div class="dept-label">{{ request.user.department.name }}</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if cases %}
+
+  <!-- Summary stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ cases|length }}</div>
+      <div class="stat-label">Total cases</div>
+    </div>
+    <div class="stat-card urgent">
+      <div class="stat-value">
+        {% for c in cases %}{% if not c.assigned_to %}●{% endif %}{% endfor %}
+      </div>
+      <div class="stat-label">Unassigned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">
+        {% for c in cases %}{% if c.status == 'under_review' %}■{% endif %}{% endfor %}
+      </div>
+      <div class="stat-label">Under review</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">
+        {% for c in cases %}{% if c.status == 'needs_correction' %}!{% endif %}{% endfor %}
+      </div>
+      <div class="stat-label">Awaiting correction</div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <form method="get" class="filter-bar">
+    <input type="text" name="q" placeholder="Search case number or applicant…" value="{{ request.GET.q }}" style="width:240px;">
+    <select name="status">
+      <option value="">All statuses</option>
+      <option value="submitted"        {% if request.GET.status == 'submitted' %}selected{% endif %}>Submitted</option>
+      <option value="ai_analyzed"      {% if request.GET.status == 'ai_analyzed' %}selected{% endif %}>AI Analyzed</option>
+      <option value="accepted"         {% if request.GET.status == 'accepted' %}selected{% endif %}>Accepted</option>
+      <option value="under_review"     {% if request.GET.status == 'under_review' %}selected{% endif %}>Under Review</option>
+      <option value="needs_correction" {% if request.GET.status == 'needs_correction' %}selected{% endif %}>Needs Correction</option>
+    </select>
+    <button type="submit" class="btn btn-secondary" style="padding:0.4rem 0.9rem;">Filter</button>
+    {% if request.GET.q or request.GET.status %}
+      <a href="{% url 'work_queue' %}" class="btn btn-secondary" style="padding:0.4rem 0.9rem;">Clear</a>
+    {% endif %}
+  </form>
+
+  <div class="queue-table-wrap">
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th>Case number</th>
+          <th>Document type</th>
+          <th>Applicant</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Assigned to</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in cases %}
+        <tr>
+          <td><span class="case-number">{{ case.case_number }}</span></td>
+          <td>{{ case.template.name }}</td>
+          <td>{{ case.applicant.get_full_name|default:case.applicant.username }}</td>
+          <td>
+            <span class="badge badge-{{ case.status }}">{{ case.get_status_display }}</span>
+          </td>
+          <td style="font-size:0.85rem; color:#6b7280;">
+            {{ case.submitted_at|date:"d M Y" }}
+          </td>
+          <td>
+            {% if case.assigned_to %}
+              <span class="assigned-to">{{ case.assigned_to.get_full_name|default:case.assigned_to.username }}</span>
+            {% else %}
+              <span class="unassigned">
+                <span class="unassigned-dot"></span>Unassigned
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'case_detail' case.pk %}" class="action-link">Review →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="queue-table-wrap">
+    <div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      <p>No cases in the queue for your department right now.</p>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}

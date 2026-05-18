@@ -26,6 +26,7 @@ urlpatterns = [
     path('', dashboard, name='dashboard'),
     path('accounts/', include('accounts.urls')),
     path('cases/', include('cases.urls')),
+    path('notifications/', include('notifications.urls')),
 ]
 
 if settings.DEBUG:

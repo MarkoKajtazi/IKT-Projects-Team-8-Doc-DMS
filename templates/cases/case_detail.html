@@ -1,46 +1,225 @@
 {% extends "base.html" %}
 {% block title %}Case {{ case.case_number|default:"Draft" }} - Doc DMS{% endblock %}
 
+{% block extra_css %}
+<style>
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+  .page-header h1 { font-size:1.4rem; font-weight:700; }
+
+  .section { margin-bottom:1.75rem; }
+  .section h2 { font-size:1rem; font-weight:600; margin-bottom:0.75rem; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:0.4rem; }
+
+  .meta-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+  .meta-table td { padding:0.45rem 0; vertical-align:top; }
+  .meta-table td:first-child { color:#6b7280; width:140px; }
+
+  .file-list { list-style:none; display:flex; flex-direction:column; gap:0.4rem; }
+  .file-list li { font-size:0.9rem; }
+  .file-list a { color:#1e3a5f; }
+
+  /* Banners */
+  .banner { border-radius:6px; padding:1rem 1.25rem; margin-bottom:1.5rem; }
+  .banner-warning { background:#fef3c7; border:1px solid #fde68a; border-left:4px solid #f59e0b; }
+  .banner-warning strong { color:#92400e; display:block; margin-bottom:0.25rem; }
+  .banner-warning p { color:#78350f; font-size:0.9rem; margin:0; }
+
+  /* Badges */
+  .badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.75rem; font-weight:600; }
+  .badge-draft            { background:#f3f4f6; color:#4b5563; }
+  .badge-submitted        { background:#dbeafe; color:#1e40af; }
+  .badge-ai_analyzed      { background:#ede9fe; color:#5b21b6; }
+  .badge-needs_correction { background:#fef3c7; color:#92400e; }
+  .badge-accepted         { background:#d1fae5; color:#065f46; }
+  .badge-under_review     { background:#e0f2fe; color:#0c4a6e; }
+  .badge-approved         { background:#bbf7d0; color:#14532d; }
+  .badge-rejected         { background:#fee2e2; color:#991b1b; }
+  .badge-archived         { background:#f3f4f6; color:#6b7280; }
+
+  /* Action boxes */
+  .action-box { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; }
+  .action-box h3 { font-size:0.9rem; font-weight:600; margin-bottom:1rem; color:#1e3a5f; }
+  .form-group { margin-bottom:0.9rem; }
+  .form-group label { display:block; font-size:0.85rem; font-weight:500; color:#374151; margin-bottom:0.3rem; }
+  .form-group select, .form-group textarea { width:100%; padding:0.45rem 0.65rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.875rem; font-family:inherit; }
+  .form-group textarea { resize:vertical; }
+  .form-group .help { font-size:0.78rem; color:#9ca3af; margin-top:0.2rem; }
+  .form-group .error { font-size:0.78rem; color:#dc2626; margin-top:0.2rem; }
+  .form-row { display:flex; gap:0.75rem; align-items:flex-start; flex-wrap:wrap; }
+  .form-row .form-group { flex:1; min-width:180px; }
+  .checkbox-label { display:flex; align-items:center; gap:0.4rem; font-size:0.875rem; color:#374151; cursor:pointer; }
+
+  /* Comments */
+  .comment-item { border:1px solid #e5e7eb; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.5rem; }
+  .comment-item.internal { background:#fafafa; border-style:dashed; }
+  .comment-meta { font-size:0.8rem; color:#9ca3af; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.5rem; }
+  .comment-meta .internal-tag { background:#f3f4f6; color:#6b7280; font-size:0.7rem; padding:0.1rem 0.4rem; border-radius:4px; }
+  .comment-item p { font-size:0.9rem; color:#374151; margin:0; }
+
+  /* Resubmit box */
+  .resubmit-box { background:#fff; border:1px solid #fde68a; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.75rem; }
+  .resubmit-box h2 { font-size:1rem; font-weight:600; color:#92400e; margin-bottom:1rem; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Case {{ case.case_number|default:"Draft" }}</h1>
+<div class="page-header">
+  <h1>Case {{ case.case_number|default:"Draft" }}</h1>
+  <span class="badge badge-{{ case.status }}">{{ case.get_status_display }}</span>
+</div>
 
-<table style="margin-bottom: 1.5rem;">
-  <tr><td><strong>Status:</strong></td><td style="padding-left: 1rem;">{{ case.get_status_display }}</td></tr>
-  <tr><td><strong>Document type:</strong></td><td style="padding-left: 1rem;">{{ case.template.name }}</td></tr>
-  <tr><td><strong>Department:</strong></td><td style="padding-left: 1rem;">{{ case.department|default:"Not assigned" }}</td></tr>
-  <tr><td><strong>Submitted:</strong></td><td style="padding-left: 1rem;">{{ case.submitted_at|default:"-" }}</td></tr>
-  <tr><td><strong>Assigned to:</strong></td><td style="padding-left: 1rem;">{{ case.assigned_to|default:"Unassigned" }}</td></tr>
-</table>
-
-<h2>Documents</h2>
-{% if documents %}
-  <ul>
-    {% for doc in documents %}
-      <li><a href="{{ doc.file.url }}">{{ doc.file_name }}</a> ({{ doc.file_size|filesizeformat }})</li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>No documents uploaded.</p>
+{% if case.status == 'needs_correction' and request.user.role == 'applicant' %}
+<div class="banner banner-warning">
+  <strong>Action required — this case needs correction</strong>
+  <p>A reviewer has returned this case. Read the comments below, update your documents, then resubmit.</p>
+</div>
 {% endif %}
+
+<!-- ── Case details ── -->
+<div class="section">
+  <h2>Details</h2>
+  <table class="meta-table">
+    <tr><td>Document type</td><td>{{ case.template.name }}</td></tr>
+    <tr><td>Department</td><td>{{ case.department|default:"Not assigned" }}</td></tr>
+    <tr><td>Submitted</td><td>{{ case.submitted_at|default:"—" }}</td></tr>
+    <tr><td>Assigned to</td><td>{{ case.assigned_to|default:"Unassigned" }}</td></tr>
+  </table>
+</div>
+
+<!-- ── Admin: assign case ── -->
+{% if assign_form %}
+<div class="action-box">
+  <h3>Assign case</h3>
+  <form method="post" action="{% url 'assign_case' case.pk %}">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ assign_form.assigned_to.label }}</label>
+        {{ assign_form.assigned_to }}
+        <div class="help">Only employees in {{ case.department }} are listed.</div>
+      </div>
+      <div style="padding-top:1.6rem;">
+        <button type="submit" class="btn">Save assignment</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<!-- ── Staff: change status ── -->
+{% if status_form and status_form.fields.new_status.choices %}
+<div class="action-box">
+  <h3>Change status</h3>
+  <form method="post" action="{% url 'change_status' case.pk %}">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ status_form.new_status.label }}</label>
+        {{ status_form.new_status }}
+      </div>
+      <div class="form-group" style="flex:2;">
+        <label>{{ status_form.notes.label }}</label>
+        {{ status_form.notes }}
+      </div>
+    </div>
+    <button type="submit" class="btn">Update status</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- ── Staff: add comment ── -->
+{% if comment_form %}
+<div class="action-box">
+  <h3>Add comment</h3>
+  <form method="post" action="{% url 'add_comment' case.pk %}">
+    {% csrf_token %}
+    <div class="form-group">
+      <label>{{ comment_form.text.label }}</label>
+      {{ comment_form.text }}
+    </div>
+    <div class="form-group">
+      <label class="checkbox-label">
+        {{ comment_form.is_internal }} {{ comment_form.is_internal.label }}
+      </label>
+      <div class="help">Uncheck to make this comment visible to the applicant.</div>
+    </div>
+    <button type="submit" class="btn">Post comment</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- ── Applicant: resubmit ── -->
+{% if resubmit_form %}
+<div class="resubmit-box">
+  <h2>Update &amp; resubmit</h2>
+  <form method="post" action="{% url 'resubmit_case' case.pk %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group">
+      <label>{{ resubmit_form.main_pdf.label }}</label>
+      {{ resubmit_form.main_pdf }}
+      <div class="help">{{ resubmit_form.main_pdf.help_text }}</div>
+      {% if resubmit_form.main_pdf.errors %}<div class="error">{{ resubmit_form.main_pdf.errors|join:", " }}</div>{% endif %}
+    </div>
+    <div class="form-group">
+      <label>Add supporting attachments</label>
+      <input type="file" name="attachments" multiple>
+      <div class="help">Currently {{ attachments|length }} attachment{{ attachments|length|pluralize }}. Up to 5 total.</div>
+    </div>
+    <button type="submit" class="btn">Resubmit case</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- ── Documents ── -->
+<div class="section">
+  <h2>Main document</h2>
+  {% if documents %}
+    <ul class="file-list">
+      {% for doc in documents %}
+        <li>
+          <a href="{{ doc.file.url }}">{{ doc.file_name }}</a>
+          <span style="color:#9ca3af;font-size:0.8rem;"> — {{ doc.file_size|filesizeformat }}{% if not doc.is_current %} (older version){% endif %}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p style="color:#9ca3af;font-size:0.9rem;">No documents uploaded.</p>
+  {% endif %}
+</div>
 
 {% if attachments %}
+<div class="section">
   <h2>Attachments</h2>
-  <ul>
+  <ul class="file-list">
     {% for att in attachments %}
-      <li><a href="{{ att.file.url }}">{{ att.file_name }}</a> ({{ att.file_size|filesizeformat }})</li>
+      <li>
+        <a href="{{ att.file.url }}">{{ att.file_name }}</a>
+        <span style="color:#9ca3af;font-size:0.8rem;"> — {{ att.file_size|filesizeformat }}</span>
+      </li>
     {% endfor %}
   </ul>
+</div>
 {% endif %}
 
-{% if comments %}
+<!-- ── Comments ── -->
+<div class="section">
   <h2>Comments</h2>
-  {% for comment in comments %}
-    <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem;">
-      <strong>{{ comment.author }}</strong> <small>{{ comment.created_at }}</small>
-      <p>{{ comment.text }}</p>
-    </div>
-  {% endfor %}
-{% endif %}
+  {% if comments %}
+    {% for comment in comments %}
+      <div class="comment-item {% if comment.is_internal %}internal{% endif %}">
+        <div class="comment-meta">
+          <strong style="color:#374151;">{{ comment.author }}</strong>
+          {{ comment.created_at|date:"d M Y, H:i" }}
+          {% if comment.is_internal and is_staff %}
+            <span class="internal-tag">Internal</span>
+          {% endif %}
+        </div>
+        <p>{{ comment.text }}</p>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:#9ca3af;font-size:0.9rem;">No comments yet.</p>
+  {% endif %}
+</div>
 
-<a href="{% url 'my_cases' %}" class="btn btn-secondary" style="margin-top: 1rem;">Back to My Cases</a>
+<a href="{% if request.user.role == 'applicant' %}{% url 'my_cases' %}{% else %}{% url 'work_queue' %}{% endif %}" class="btn btn-secondary">← Back</a>
 {% endblock %}

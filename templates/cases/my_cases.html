@@ -1,6 +1,241 @@
 {% extends "base.html" %}
 {% block title %}My Cases - Doc DMS{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1;
+    min-width: 130px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+  }
+  .stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e3a5f;
+    line-height: 1;
+  }
+  .stat-card .stat-label {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Table */
+  .cases-table-wrap {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cases-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .cases-table thead {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .cases-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+  }
+  .cases-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    vertical-align: middle;
+  }
+  .cases-table tbody tr:last-child td { border-bottom: none; }
+  .cases-table tbody tr:hover td { background: #f9fafb; }
+
+  .case-number {
+    font-family: monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e3a5f;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-draft            { background: #f3f4f6; color: #4b5563; }
+  .badge-submitted        { background: #dbeafe; color: #1e40af; }
+  .badge-ai_analyzed      { background: #ede9fe; color: #5b21b6; }
+  .badge-needs_correction { background: #fef3c7; color: #92400e; }
+  .badge-accepted         { background: #d1fae5; color: #065f46; }
+  .badge-under_review     { background: #e0f2fe; color: #0c4a6e; }
+  .badge-approved         { background: #bbf7d0; color: #14532d; }
+  .badge-rejected         { background: #fee2e2; color: #991b1b; }
+  .badge-archived         { background: #f3f4f6; color: #6b7280; }
+
+  .action-link {
+    color: #1e3a5f;
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+  .action-link:hover { text-decoration: underline; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #9ca3af;
+  }
+  .empty-state svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+  }
+  .empty-state p {
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* Needs-correction banner */
+  .correction-banner {
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>My Cases</h1>
-<p>Coming soon.</p>
+<div class="page-header">
+  <h1>My Cases</h1>
+  <a href="{% url 'new_submission' %}" class="btn">+ New Application</a>
+</div>
+
+{% if cases %}
+
+  {% for case in cases %}
+    {% if case.status == 'needs_correction' %}
+      <div class="correction-banner">
+        ⚠ Case <strong>{{ case.case_number }}</strong> requires a correction — please review and resubmit.
+        <a href="{% url 'case_detail' case.pk %}" style="margin-left:auto; color:#92400e; font-weight:600;">View →</a>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <!-- Summary stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ cases|length }}</div>
+      <div class="stat-label">Total cases</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">
+        {% with n=0 %}{% for c in cases %}{% if c.status == 'submitted' or c.status == 'ai_analyzed' or c.status == 'accepted' or c.status == 'under_review' %}{% with n=n|add:1 %}{% endwith %}{% endif %}{% endfor %}{{ cases|length }}{% endwith %}
+      </div>
+      <div class="stat-label">In progress</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">
+        {% for c in cases %}{% if c.status == 'approved' %}✓{% endif %}{% endfor %}
+      </div>
+      <div class="stat-label">Approved</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">
+        {% for c in cases %}{% if c.status == 'needs_correction' %}!{% endif %}{% endfor %}
+      </div>
+      <div class="stat-label">Need action</div>
+    </div>
+  </div>
+
+  <div class="cases-table-wrap">
+    <table class="cases-table">
+      <thead>
+        <tr>
+          <th>Case number</th>
+          <th>Document type</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Last updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in cases %}
+        <tr>
+          <td>
+            <span class="case-number">{{ case.case_number|default:"— Draft —" }}</span>
+          </td>
+          <td>{{ case.template.name }}</td>
+          <td>
+            <span class="badge badge-{{ case.status }}">{{ case.get_status_display }}</span>
+          </td>
+          <td>
+            {% if case.submitted_at %}
+              {{ case.submitted_at|date:"d M Y" }}
+            {% else %}
+              <span style="color:#9ca3af;">Not submitted</span>
+            {% endif %}
+          </td>
+          <td style="color:#9ca3af; font-size:0.85rem;">{{ case.updated_at|date:"d M Y, H:i" }}</td>
+          <td>
+            <a href="{% url 'case_detail' case.pk %}" class="action-link">View →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="cases-table-wrap">
+    <div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <p>You haven't submitted any cases yet.</p>
+      <a href="{% url 'new_submission' %}" class="btn">Submit your first application</a>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}
